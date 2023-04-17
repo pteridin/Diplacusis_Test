@@ -1,0 +1,15 @@
+[package]
+name = "Diplacusis_Test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = "0.4.24"
+cpal = "0.15.2"
+csv = "1.2.1"
+rand = "0.8.5"
+rodio = "0.17.1"
+termion = "2.0.1"
+time = "0.3.20"
