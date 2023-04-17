@@ -1,6 +1,8 @@
 use rand::{seq::SliceRandom, Rng};
 use rodio::*;
+use std::io::BufWriter;
 use std::{io, time::Duration};
+use std::fs::{File, OpenOptions};
 use termion::{event::Key, input::TermRead};
 use csv::WriterBuilder;
 use chrono::prelude::*;
@@ -21,9 +23,9 @@ fn play_sound(frequency: f32, amplitude: f32, ear: &str) {
     let sink = rodio::SpatialSink::try_new(&handle, [-2.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]).unwrap();
 
     if ear == "right" {
-        sink.set_emitter_position([2.0, 0.0, 0.0]);
-    } else {
         sink.set_emitter_position([-2.0, 0.0, 0.0]);
+    } else {
+        sink.set_emitter_position([2.0, 0.0, 0.0]);
     }
 
     let sound_wave = create_sound_wave(frequency, amplitude);
@@ -35,7 +37,7 @@ fn play_sound(frequency: f32, amplitude: f32, ear: &str) {
 fn print_instructions() {
     println!("Welcome to the diplacusis hearing test!");
     println!("Instructions:");
-    println!("  - w/d keys to change the right ear frequency.");
+    println!("  - w/s keys to change the right ear frequency.");
     println!("  - + and - keys to change the volume.");
     println!("  - Space key to replay the frequencies.");
     println!("  - # key to lock in frequencies.");
@@ -47,12 +49,26 @@ fn append_results_to_csv(left_note: u32, right_note: u32) {
     let date = Local::now().format("%Y-%m-%d").to_string();
     let file_name = format!("results_{}.csv", date);
 
-    let mut writer = WriterBuilder::new()
-        .has_headers(false)
-        .from_path(&file_name)
-        .unwrap_or_else(|_| WriterBuilder::new().has_headers(true).from_path(&file_name).unwrap());
+    // if the file doesn't exist, create it and write the header
+    if !std::path::Path::new(&file_name).exists() {
+        let file = File::create(&file_name).unwrap();
+        let mut writer = WriterBuilder::new().has_headers(false).from_writer(file);
+        writer.write_record(&["left_note", "right_note", "left_frequency", "right_frequency"]).unwrap();
+        writer.flush().unwrap();
+    }
 
-    writer.write_record(&[left_note.to_string(), right_note.to_string()]).unwrap();
+    // append the results to the file
+    let file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(&file_name)
+        .unwrap();
+    let mut writer = WriterBuilder::new().has_headers(false).from_writer(BufWriter::new(file));
+    writer
+        .write_record(&[left_note.to_string(), right_note.to_string(), piano_freq(left_note).to_string(), piano_freq(right_note).to_string()])
+        .unwrap();
+
+    // flush the writer to make sure the results are written to the file
     writer.flush().unwrap();
 }
 
@@ -97,7 +113,7 @@ fn main() {
                     right_note = std::cmp::min(right_note + 1, note_max);
                     right_freq = piano_freq(right_note);
                 }
-                Key::Char('d') => {
+                Key::Char('s') => {
                     right_note = std::cmp::max(right_note - 1, note_min);
                     right_freq = piano_freq(right_note);
                 }
